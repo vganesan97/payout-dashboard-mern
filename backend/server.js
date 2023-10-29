@@ -82,7 +82,7 @@ app.listen(port, async () => {
     //     }
     // }).then(x => console.log(x));
 
-    const merchants = method.merchants.list({"provider_id.plaid": "ins_116248"}).then(x => console.log(x));
+    //const merchants = method.merchants.list({"provider_id.plaid": "ins_116248"}).then(x => console.log(x));
     // const merchants1 = method.merchants.list().then(x => console.log(x.length));
     const db = getDb();
 
@@ -114,13 +114,42 @@ app.listen(port, async () => {
         }
     ]).toArray();
 
-    // Nicely print the total amounts for each Dunkin branch
-    console.log("Total Amounts by Dunkin Branch:");
+    const aggregatedResults2 = await paymentsCollection.aggregate([
+        {
+            $addFields: {
+                "amountInCents": "$methodPayment.amount"
+            }
+        },
+        {
+            $group: {
+                _id: "$methodPayment.source",
+                totalAmountInCents: { $sum: "$amountInCents" }
+            }
+        },
+        {
+            $addFields: {
+                "totalAmount": {
+                    $divide: ["$totalAmountInCents", 100]
+                }
+            }
+        },
+        {
+            $sort: {
+                totalAmount: -1
+            }
+        }
+    ]).toArray();
+
+    console.log("Total Amounts paid by each Dunkin Branch:");
     aggregatedResults.forEach(result => {
         console.log(`- ${result._id}: $${result.totalAmount.toFixed(2)}`);
     });
+    console.log()
 
-
+    console.log("Total Amounts paid out per unique source account");
+    aggregatedResults2.forEach(result => {
+        console.log(`- ${result._id}: $${result.totalAmount.toFixed(2)}`);
+    });
 
 
     try {

@@ -96,37 +96,7 @@ async function processRow(row) {
             const amount = result.row.Amount[0];
 
             const db = getDb();
-
-            // Create a new document
-            const paymentDocument = {
-                employee: {
-                    dunkinId: empDunkinId,
-                    dunkinBranch: empDunkinBranch,
-                    firstName: empFirstName,
-                    lastName: empLastName,
-                    DOB: empDOB,
-                    phoneNumber: empPhoneNumber
-                },
-                payor: {
-                    dunkinId: payorDunkinId,
-                    ABARouting: payorABARouting,
-                    accountNumber: payorAccountNumber,
-                    name: payorName,
-                    DBA: payorDBA,
-                    EIN: payorEIN,
-                    address: {
-                        line1: payorAddressLine1,
-                        city: payorAddressCity,
-                        state: payorAddressState,
-                        zip: payorAddressZip
-                    }
-                },
-                payee: {
-                    plaidId: payeePlaidId,
-                    loanAccountNumber: payeeLoadAccNum
-                },
-                amount: amount
-            };
+            const paymentsCollection = db.collection('payments');
 
             if (!sourceEntityMap[payorEIN]) {
                 const entity = await method.entities.create({
@@ -214,6 +184,42 @@ async function processRow(row) {
                     description: 'Loan Pmt',
                 });
                 console.log(payment)
+
+                // Create a new document
+                const paymentDocument = {
+                    employee: {
+                        dunkinId: empDunkinId,
+                        dunkinBranch: empDunkinBranch,
+                        firstName: empFirstName,
+                        lastName: empLastName,
+                        DOB: empDOB,
+                        phoneNumber: empPhoneNumber
+                    },
+                    payor: {
+                        dunkinId: payorDunkinId,
+                        ABARouting: payorABARouting,
+                        accountNumber: payorAccountNumber,
+                        name: payorName,
+                        DBA: payorDBA,
+                        EIN: payorEIN,
+                        address: {
+                            line1: payorAddressLine1,
+                            city: payorAddressCity,
+                            state: payorAddressState,
+                            zip: payorAddressZip
+                        }
+                    },
+                    payee: {
+                        plaidId: payeePlaidId,
+                        loanAccountNumber: payeeLoadAccNum
+                    },
+                    amount: amount,
+                    methodPayment: payment
+                };
+
+                const insertResult = await paymentsCollection.insertOne(paymentDocument);
+                console.log(`Successfully inserted payment document with Method payment info for MongoDB ID: ${insertResult.id}`);
+
                 resolve()
             } catch (error) {
                 console.log('Error:', error.message);
