@@ -100,7 +100,7 @@ const FileUpload = () => {
     const handleApprove = async () => {
         setApproving(true);  // Set approving to true
         // Send xmlData to backend on approval
-        const CHUNK_SIZE = 2;  // Set chunk size to 1850 messages
+        const CHUNK_SIZE = 140;
         const totalMessages = xmlData.length;
         const totalChunks = Math.ceil(totalMessages / CHUNK_SIZE);  // Calculate the total number of chunks
         const fileId = uuid.v4();
