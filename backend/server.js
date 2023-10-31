@@ -1,5 +1,8 @@
 const express = require("express");
 const uploadRoute = require('./routes/uploadRoute'); // Adjust the path as necessary
+const paymentStatusWebhook = require('./routes/uploadRoute'); // Adjust the path as necessary
+const uniqueFileIds = require('./routes/uniqueFileIds'); // Adjust the path as necessary
+
 const { Method, Environments } = require('method-node');
 
 const app = express();
@@ -12,6 +15,8 @@ app.use(express.json());
 //app.use(require("./routes/record"));
 
 app.use('/upload', uploadRoute);
+app.use('/paymentStatusWebhook', paymentStatusWebhook)
+app.use('/unique-file-ids', uniqueFileIds);
 
 
 // get driver connection
@@ -22,11 +27,16 @@ app.listen(port, async () => {
     await dbo.connectToServer(function (err) {
         if (err) console.error(err);
     });
-    //startConsumer()
+    startConsumer()
 
     const method = new Method({
         apiKey: process.env.METHOD_KEY,
         env: Environments.dev,
+    });
+
+    const webhook = await method.webhooks.create({
+        type: 'payment.update',
+        url: 'https://localhost:5000/paymentStatusWebhook',
     });
 
 
@@ -153,8 +163,9 @@ app.listen(port, async () => {
 
 
     try {
-        const [results, results2, results3, results4, results5] = await Promise.all([
+        const [results, results2, results3, results4, results5, results6] = await Promise.all([
             paymentsCollection.aggregate([{ $group: { _id: '$payor.accountNumber' } }]).toArray(),
+            paymentsCollection.aggregate([{ $group: { _id: '$payor.ABARouting' } }]).toArray(),
             paymentsCollection.aggregate([{ $group: { _id: '$payor.dunkinId' } }]).toArray(),
             paymentsCollection.aggregate([{ $group: { _id: '$payor.EIN' } }]).toArray(),
             paymentsCollection.aggregate([{ $group: { _id: '$employee.dunkinId' } }]).toArray(),
@@ -172,10 +183,12 @@ app.listen(port, async () => {
         };
 
         logDistinctValues(results, 'payor account number');
-        logDistinctValues(results2, 'payor dunkin id');
-        logDistinctValues(results3, 'payor ein');
-        logDistinctValues(results4, 'emp dunkin ids');
-        logDistinctValues(results5, 'payee loan num');
+        logDistinctValues(results2, 'payor ABA routing number');
+        logDistinctValues(results3, 'payor dunkin id');
+        logDistinctValues(results4, 'payor ein');
+        logDistinctValues(results5, 'emp dunkin ids');
+        logDistinctValues(results6, 'payee loan num');
+
 
 
     } catch (err) {

@@ -6,6 +6,8 @@ const { Method, Environments } = require('method-node');
 const formatter = require('xml-formatter');
 const {sendToQueue} = require("../mq/producer");
 const {getDb} = require("../conn");
+const uuid = require('uuid');
+
 
 const method = new Method({
     apiKey: process.env.METHOD_KEY,
@@ -26,79 +28,115 @@ let errorsEncountered = 0;
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-router.post('/', upload.single('file'), (req, res) => {
-    let chunk = req.file.buffer.toString('utf-8');
-    chunk = buffer + chunk;
+router.post('/', upload.single('file'), async (req, res) => {
+    const totalMessages = parseInt(req.headers['total-file-size']);  // Get the total file size from header
+    const fileId = req.headers['file-id'];  // Get the file ID from header
+    const fileName = req.headers['file-name'];  // Get the file name from header
+    const chunkStart = parseInt(req.headers['chunk-start']);  // Get the chunk start from header
+    const chunkEnd = parseInt(req.headers['chunk-end']);  // Get the chunk end from header
 
-    const rows = chunk.split('</row>');
-    buffer = rows.pop(); // Incomplete row, if any, will be kept in buffer
+    //console.log(req.body)
+    const rows = req.body // If the rows are sent as a JSON array in the request body
 
-    let index = 0;  // Initialize index to keep track of current row
-
-    const interval = setInterval(() => {
-        if (index >= rows.length) {
-            clearInterval(interval); // Stop when all rows have been processed
-            console.log(`Total payments processed: ${processedPayments}`);
-            console.log(`Total errors encountered: ${errorsEncountered}`);
-            res.status(200).send('All chunks processed');
-            return;
-        }
-
-        let row = rows[index];
-        row += '</row>';
-        processRow(row).then(() => {
-            processedPayments++;
-        }).catch(() => {
-            errorsEncountered++;
+    const processRowsWithoutPromise = (rows, fileId) => {
+        rows.forEach((row, index) => {
+            // setTimeout(() => {
+            //     processRow(JSON.parse(JSON.stringify(row)), fileId);
+            // }, index * 100000);
+            sendToQueue(JSON.stringify(row))
         });
+    };
 
-        index++;
-    }, 1000);
+
+    // Call the function
+    processRowsWithoutPromise(rows, fileId);
+
+    // res.status(200).send(`Chunk from ${chunkStart} to ${chunkEnd} processed`);
+    res.status(200).send(`All payments sent to queue`);
+
+    // Create a promise for each row's processing
+
+    // console.log(chunkEnd, totalMessages, chunkEnd > totalMessages)
+    // if (chunkEnd >= totalMessages) {
+    //     //console.log(`Total payments processed: ${processedPayments}`);
+    //     //console.log(`Total errors encountered: ${errorsEncountered}`);
+    //
+    //     const db = getDb();
+    //     const xmlCollection = db.collection('xml-files');
+    //
+    //     const xmlDocument = {
+    //         fileId: fileId,
+    //         fileName: fileName,
+    //         fileSize: totalMessages,
+    //         dateCreated: new Date(),
+    //     };
+    //
+    //     try {
+    //         await xmlCollection.insertOne(xmlDocument);
+    //         console.log("xml updated");
+    //         res.status(200).send('All chunks processed');
+    //     } catch (error) {
+    //         console.error('Database insertion error:', error);
+    //         res.status(500).send('Server error');
+    //     }
+    // } else {
+    //     try {
+    //         // Wait for all row processing promises to resolve
+    //         const processRowsWithoutPromise = (rows, fileId) => {
+    //             rows.forEach((row, index) => {
+    //                 // setTimeout(() => {
+    //                 //     processRow(JSON.parse(JSON.stringify(row)), fileId);
+    //                 // }, index * 100000);
+    //                 sendToQueue(row)
+    //             });
+    //         };
+    //
+    //
+    //         // Call the function
+    //         processRowsWithoutPromise(rows, fileId);
+    //
+    //         res.status(200).send(`Chunk from ${chunkStart} to ${chunkEnd} processed`);
+    //     } catch (error) {
+    //         // If there's an error in processing any row, catch it and increment errors encountered
+    //         errorsEncountered++;
+    //         console.error('Error in Promise.all:', error);
+    //         res.status(500).send('Server error during row processing');
+    //     }
+    // }
 });
 
-async function processRow(row) {
-    return new Promise(async (resolve, reject) => {
-        const removeRootTag = (xmlString) => {
-            const removedOpeningTag = xmlString.replace(/^<root>/, '');
-            const removedBothTags = removedOpeningTag.replace(/<\/root>$/, '');
-            return removedBothTags;
-        };
-        const x = removeRootTag(row)
+async function processRow(row, fileId) {
+            console.log("process row")
+            // Access fields directly from the row object
+            const empDunkinId = row.Employee.DunkinId;
+            const empDunkinBranch = row.Employee.DunkinBranch;
+            const empFirstName = row.Employee.FirstName;
+            const empLastName = row.Employee.LastName;
+            const empDOB = row.Employee.DOB;
+            const empPhoneNumber = row.Employee.PhoneNumber;
 
-        xml2js.parseString(x, async function (err, result) {
-            if (err) {
-                console.error("Error parsing XML:", err);
-                return;
-            }
+            const payorDunkinId = row.Payor.DunkinId;
+            const payorABARouting = row.Payor.ABARouting;
+            const payorAccountNumber = row.Payor.AccountNumber;
+            const payorName = row.Payor.Name;
+            const payorDBA = row.Payor.DBA;
+            const payorEIN = row.Payor.EIN;
+            const payorAddressLine1 = row.Payor.Address.Line1;
+            const payorAddressCity = row.Payor.Address.City;
+            const payorAddressState = row.Payor.Address.State;
+            const payorAddressZip = row.Payor.Address.Zip;
 
-            // Access fields using the result object
-            const empDunkinId = result.row.Employee[0].DunkinId[0];
-            const empDunkinBranch = result.row.Employee[0].DunkinBranch[0];
-            const empFirstName = result.row.Employee[0].FirstName[0];
-            const empLastName = result.row.Employee[0].LastName[0];
-            const empDOB = result.row.Employee[0].DOB[0];
-            const empPhoneNumber = result.row.Employee[0].PhoneNumber[0];
+            const payeePlaidId = row.Payee.PlaidId;
+            const payeeLoadAccNum = row.Payee.LoanAccountNumber;
 
-            const payorDunkinId = result.row.Payor[0].DunkinId[0];
-            const payorABARouting = result.row.Payor[0].ABARouting[0];
-            const payorAccountNumber = result.row.Payor[0].AccountNumber[0];
-            const payorName = result.row.Payor[0].Name[0];
-            const payorDBA = result.row.Payor[0].DBA[0];
-            const payorEIN = result.row.Payor[0].EIN[0];
-            const payorAddressLine1 = result.row.Payor[0].Address[0].Line1[0]
-            const payorAddressCity = result.row.Payor[0].Address[0].City[0]
-            const payorAddressState = result.row.Payor[0].Address[0].State[0]
-            const payorAddressZip = result.row.Payor[0].Address[0].Zip[0]
+            const amount = row.Amount;
 
-            const payeePlaidId = result.row.Payee[0].PlaidId[0];
-            const payeeLoadAccNum = result.row.Payee[0].LoanAccountNumber[0];
 
-            const amount = result.row.Amount[0];
-
-            const db = getDb();
+        const db = getDb();
             const paymentsCollection = db.collection('payments');
 
             if (!sourceEntityMap[payorEIN]) {
+
                 const entity = await method.entities.create({
                     type: 'c_corporation',
                     corporation: {
@@ -115,136 +153,122 @@ async function processRow(row) {
                         zip: payorAddressZip,
                     },
                 })
+                console.log("corp entity", entity)
                 sourceEntityMap[payorEIN] = entity.id;
             }
 
+           // console.log(destEntityMap)
             if (!destEntityMap[empDunkinId]) {
-                function convertDateFormat(dateString) {
-                    const [month, day, year] = dateString.split('-');
-                    return `${year}-${month}-${day}`;
-                }
 
-                const entity = await method.entities.create({
-                    type: 'individual',
-                    individual: {
-                        first_name: empFirstName,
-                        last_name: empLastName,
-                        phone: '15121231111',
-                        email: 'kevin.doyle@gmail.com',
-                        dob: convertDateFormat(empDOB),
-                    }
-                })
-                destEntityMap[empDunkinId] = entity.id;
+                const entity2 = await method.entities.create({
+                        type: 'individual',
+                        individual: {
+                            first_name: empFirstName,
+                            last_name: empLastName,
+                            phone: '15121231111'
+                        }
+                    })
+                    //console.log("individual entity", entity2)
+                    destEntityMap[empDunkinId] = entity2.id;
+
             }
 
             if (!sourceAcctMap[payorAccountNumber]) {
-                const account = await method.accounts.create({
-                    holder_id: sourceEntityMap[payorEIN],
-                    ach: {
-                        routing: payorABARouting,
-                        number: payorAccountNumber,
-                        type: 'checking',
-                    },
-                })
-                sourceAcctMap[payorAccountNumber] = account.id;
+
+                    const account = await method.accounts.create({
+                        holder_id: sourceEntityMap[payorEIN],
+                        ach: {
+                            routing: payorABARouting,
+                            number: payorAccountNumber,
+                            type: 'checking',
+                        },
+                    })
+                    sourceAcctMap[payorAccountNumber] = account.id;
+
             }
 
             try {
+
                 const merchants = await method.merchants.list({"provider_id.plaid": payeePlaidId});
-                if (merchants.length === 0) {
-                    console.log("No merchants found for Plaid ID:", payeePlaidId);
-                    return;  // Skip this row and move to the next one
-                }
-                const mchId = merchants[0].mch_id;
-                // The rest of your code to create accounts and payments
+                    if (merchants.length === 0) {
+                        console.log("No merchants found for Plaid ID:", payeePlaidId);
+                        return;  // Skip this row and move to the next one
+                    }
+                    const mchId = merchants[0].mch_id;
+                    // The rest of your code to create accounts and payments
 
-                // Perform account creation and other operations
-                if (!destAcctMap[payeeLoadAccNum]) {
-                    const account = await method.accounts.create({
-                        holder_id: destEntityMap[empDunkinId],
-                        liability: {
-                            mch_id: mchId,
-                            account_number: payeeLoadAccNum
-                        }
-                    });
-                    destAcctMap[payeeLoadAccNum] = account.id;
-                }
+                    // Perform account creation and other operations
+                    if (!destAcctMap[payeeLoadAccNum]) {
 
-                // Convert amount to cents and create payment
-                function convertToCents(amountString) {
-                    const amountFloat = parseFloat(amountString.replace('$', ''));
-                    const amountInCents = Math.round(amountFloat * 100);
-                    return amountInCents;
-                }
+                        const account = await method.accounts.create({
+                            holder_id: destEntityMap[empDunkinId],
+                            liability: {
+                                mch_id: mchId,
+                                account_number: payeeLoadAccNum
+                            }
+                        });
+                        destAcctMap[payeeLoadAccNum] = account.id;
+                    }
+
+                    // Convert amount to cents and create payment
+                    function convertToCents(amountString) {
+                        const amountFloat = parseFloat(amountString.replace('$', ''));
+                        const amountInCents = Math.round(amountFloat * 100);
+                        return amountInCents;
+                    }
 
                 const payment = await method.payments.create({
-                    amount: convertToCents(amount),
-                    source: sourceAcctMap[payorAccountNumber],
-                    destination: destAcctMap[payeeLoadAccNum],
-                    description: 'Loan Pmt',
-                });
-                console.log(payment)
+                        amount: convertToCents(amount),
+                        source: sourceAcctMap[payorAccountNumber],
+                        destination: destAcctMap[payeeLoadAccNum],
+                        description: 'Loan Pmt',
+                    });
+                    console.log(payment)
 
-                // Create a new document
-                const paymentDocument = {
-                    employee: {
-                        dunkinId: empDunkinId,
-                        dunkinBranch: empDunkinBranch,
-                        firstName: empFirstName,
-                        lastName: empLastName,
-                        DOB: empDOB,
-                        phoneNumber: empPhoneNumber
-                    },
-                    payor: {
-                        dunkinId: payorDunkinId,
-                        ABARouting: payorABARouting,
-                        accountNumber: payorAccountNumber,
-                        name: payorName,
-                        DBA: payorDBA,
-                        EIN: payorEIN,
-                        address: {
-                            line1: payorAddressLine1,
-                            city: payorAddressCity,
-                            state: payorAddressState,
-                            zip: payorAddressZip
-                        }
-                    },
-                    payee: {
-                        plaidId: payeePlaidId,
-                        loanAccountNumber: payeeLoadAccNum
-                    },
-                    amount: amount,
-                    methodPayment: payment
-                };
+                    const paymentDocument = {
+                        employee: {
+                            dunkinId: empDunkinId,
+                            dunkinBranch: empDunkinBranch,
+                            firstName: empFirstName,
+                            lastName: empLastName,
+                            DOB: empDOB,
+                            phoneNumber: empPhoneNumber
+                        },
+                        payor: {
+                            dunkinId: payorDunkinId,
+                            ABARouting: payorABARouting,
+                            accountNumber: payorAccountNumber,
+                            name: payorName,
+                            DBA: payorDBA,
+                            EIN: payorEIN,
+                            address: {
+                                line1: payorAddressLine1,
+                                city: payorAddressCity,
+                                state: payorAddressState,
+                                zip: payorAddressZip
+                            }
+                        },
+                        payee: {
+                            plaidId: payeePlaidId,
+                            loanAccountNumber: payeeLoadAccNum
+                        },
+                        amount: amount,
+                        methodPayment: payment,
+                        fileId: fileId
+                    };
 
-                const insertResult = await paymentsCollection.insertOne(paymentDocument);
-                console.log(`Successfully inserted payment document with Method payment info for MongoDB ID: ${insertResult.id}`);
+                    const insertResult = await paymentsCollection.insertOne(paymentDocument);
+                    console.log(`Successfully inserted payment document with Method payment info for MongoDB`);
 
-                resolve()
+
             } catch (error) {
-                console.log('Error:', error.message);
-                reject()
-                // Skip this row and move to the next one
+                console.error(error);
             }
+            // Resolve the promise once processing is done
+              // Return to exit function
 
-
-            // // Choose the appropriate collection
-            // const paymentsCollection = db.collection('payments');
-            //
-            // // Insert the document into the collection
-            // await paymentsCollection.insertOne(paymentDocument);
-            // console.log("Payment document inserted");
-            //
-            // // Format the row for logging or sending to the queue
-            // const prettyRow = formatter(row, {
-            //     indentation: '  ', // Indentation using 2 spaces
-            // });
-            //
-            // // Send it to the queue
-            // //sendToQueue(prettyRow);
-
-        });
-    })
 }
+
+
 
 module.exports = router;
