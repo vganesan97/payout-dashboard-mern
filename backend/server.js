@@ -2,27 +2,28 @@ const express = require("express");
 const uploadRoute = require('./routes/uploadRoute'); // Adjust the path as necessary
 const paymentStatusWebhook = require('./routes/uploadRoute'); // Adjust the path as necessary
 const uniqueFileIds = require('./routes/uniqueFileIds'); // Adjust the path as necessary
-
+const dunkinBranchReport = require('./routes/dunkinBranchReport'); // Adjust the path as necessary
+const totalFundsPerSource = require('./routes/totalFundsPerSource'); // Adjust the path as necessary
+const paymentsReport = require('./routes/paymentsReport'); // Adjust the path as necessary
 const { Method, Environments } = require('method-node');
-
 const app = express();
 const cors = require("cors");
-require("dotenv").config({ path: "./config.env" });
 const port = process.env.PORT || 5000;
-
-app.use(cors());
-app.use(express.json());
-//app.use(require("./routes/record"));
-
-app.use('/upload', uploadRoute);
-app.use('/paymentStatusWebhook', paymentStatusWebhook)
-app.use('/unique-file-ids', uniqueFileIds);
-
-
-// get driver connection
 const dbo = require("./conn");
 const {startConsumer} = require("./mq/consumer");
 const {getDb} = require("./conn");
+require("dotenv").config({ path: "./config.env" });
+
+app.use(cors());
+app.use(express.json());
+app.use('/upload', uploadRoute);
+app.use('/paymentStatusWebhook', paymentStatusWebhook)
+app.use('/uniqueFileIds', uniqueFileIds);
+app.use('/totalFundsPerSource', totalFundsPerSource);
+app.use('/dunkinBranchReport', dunkinBranchReport);
+app.use('/paymentsReport', paymentsReport);
+
+
 app.listen(port, async () => {
     await dbo.connectToServer(function (err) {
         if (err) console.error(err);
@@ -39,63 +40,7 @@ app.listen(port, async () => {
         url: 'https://localhost:5000/paymentStatusWebhook',
     });
 
-
-    // const entity = method.entities.create({
-    //     type: 'c_corporation',
-    //     corporation: {
-    //         name: 'Dunkin\' Donuts LLC',
-    //         dba: 'Dunkin\' Donuts',
-    //         ein: '32120240',
-    //         owners: [],
-    //     },
-    //     address: {
-    //         line1: '999 Hayes Lights',
-    //         line2: null,
-    //         city: 'Kerlukemouth',
-    //         state: 'IA',
-    //         zip: '67485',
-    //     },
-    // }).then(x => console.log(x));
-
-    // const account = method.accounts.create({
-    //     holder_id: 'ent_qLgRTbq8jWqAn',
-    //     ach: {
-    //         routing: '403911437',
-    //         number: '40909581',
-    //         type: 'checking',
-    //     },
-    // }).then(x => console.log(x));
-
-    // const payment = method.payments.create({
-    //     amount: 5000,
-    //     source: 'acc_VLzzdnqbVXKnG',
-    //     destination: 'acc_cWXL3HPQmnFVK',
-    //     description: 'Loan Pmt',
-    // }).then(x => console.log(x));
-
-    // const entity = method.entities.create({
-    //     type: 'individual',
-    //     individual: {
-    //         first_name: 'Kevin',
-    //         last_name: 'Doyle',
-    //         phone: '15121231111',
-    //         email: 'kevin.doyle@gmail.com',
-    //         dob: '1997-03-18',
-    //     }
-    // }).then(x => console.log(x));
-
-    // const account = method.accounts.create({
-    //     holder_id: 'ent_pVeYy4D7bQX7g',
-    //     liability: {
-    //         mch_id: 'mch_307596',
-    //         number: '04807469',
-    //     }
-    // }).then(x => console.log(x));
-
-    //const merchants = method.merchants.list({"provider_id.plaid": "ins_116248"}).then(x => console.log(x));
-    // const merchants1 = method.merchants.list().then(x => console.log(x.length));
     const db = getDb();
-
     const paymentsCollection = db.collection('payments');
 
     method.ping().then(r => console.log("method connection:", r))
