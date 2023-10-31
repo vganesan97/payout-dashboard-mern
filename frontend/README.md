@@ -38,7 +38,6 @@ dequeue the payments at our desired pace, keeping in mind the Method API rate li
 - Right now, I'm processing each payment in order, while creating account/entities when needed.  For a larger system, having separate queues for each method api request might be advantageous.  This way when workers are dequeuing from the queue, a pool can possibly process payments in parallel if the accounts/entities for that payment has already been created.  However, this approach would require a shared state amongs all workers to keep track of the current chunk, resources consumed, and the number of requests to the method api
 - Another idea would be to offload the XML file to an on-prem/cloud storage to do later processing.  However, we would still be reading the large file in one request which would be a concern for the memory of the instance.
 - I'm assuming that the producer and consumer will each be workers/processes on their own.  For the sake of this project, they are running on the express server.
-
 ## Questions/Concerns
 - I had to use curl on the command line in order to download the XML file in the notion.  It seems to be too large to open in the browser (tends to crash when clicking on it).
 - The Dunkin Donuts corp zip code in payment, specifically the one from Iowa, returns the following error when creating the entity.  I had to look up the zip code and manually hard code the state to 'KS'.
@@ -55,3 +54,4 @@ dequeue the payments at our desired pace, keeping in mind the Method API rate li
     ```
 - Sometimes a merchant for a plaid id doesn't exist and we’re not able to create a dest acct, is this by design?
 - Does it make sense to cache the merchant Ids for each plaid id?  Is the plaid id unique for every merchant Id?
+- Would it be possible to stream the file to the api server or worker?
