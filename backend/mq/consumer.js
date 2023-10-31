@@ -210,7 +210,7 @@ function startConsumer() {
                             }
                         }
                         channel.ack(message);
-                    }, 2000);  // 2-second delay
+                    }, 500);  // 500ms delay for basic rate limiting
                 },
                 {
                     noAck: false,
