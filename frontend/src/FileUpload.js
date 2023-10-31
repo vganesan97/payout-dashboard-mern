@@ -1,6 +1,7 @@
 import React, { useRef, useState} from 'react';
 import { Box, Typography } from "@mui/material";
 import axios from 'axios';
+import { CircularProgress } from '@mui/material';
 import {
     Button,
     Paper,
@@ -20,12 +21,19 @@ const FileUpload = () => {
     const [xmlData, setXmlData] = useState([]);
     const [showTable, setShowTable] = useState(false);
     const [showApproveDecline, setShowApproveDecline] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [approving, setApproving] = useState(false);
+
     const CHUNK_SIZE = 1024 * 1024; // 1MB
 
     const handleUpload = async () => {
+        setUploading(true);  // Set uploading to true
+
         const file = fileInput.current.files[0];
         if (!file) {
             console.error("No file selected");
+            setUploading(false);  // Set uploading to true
+
             return;
         }
 
@@ -85,9 +93,12 @@ const FileUpload = () => {
         // Show the table
         setShowTable(true);
         setShowApproveDecline(true);
+        setUploading(false);  // Set uploading to true
+
     };
 
     const handleApprove = async () => {
+        setApproving(true);  // Set approving to true
         // Send xmlData to backend on approval
         const CHUNK_SIZE = 2;  // Set chunk size to 1850 messages
         const totalMessages = xmlData.length;
@@ -109,12 +120,15 @@ const FileUpload = () => {
             const end = Math.min((i + 1) * CHUNK_SIZE, totalMessages);
             const chunkData = xmlData.slice(start, end);  // Get a chunk of 1850 messages from xmlData
             const chunkJson = JSON.stringify(chunkData);  // Convert chunk to JSON
-            const response = await axios.post('http://localhost:5000/upload', chunkJson, {
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-            })
+            try{
+                await axios.post('http://localhost:5000/upload', chunkJson, {
+                    headers: {'Content-Type': 'application/json'}
+                })
+            } catch (e) {
+                setApproving(false)
+            }
         }
+        setApproving(false);  // Set approving to false
     };
 
 
@@ -127,20 +141,29 @@ const FileUpload = () => {
     return (
         <>
             <div>
-                <input type="file" ref={fileInput}/>
-                <Button variant="contained" color="primary" onClick={handleUpload}>
-                    Upload
-                </Button>
+                <input type="file" ref={fileInput} />
+                {uploading ? (
+                    <CircularProgress size={24} />
+                ) : (
+                    <Button variant="contained" color="primary" onClick={handleUpload}>
+                        Upload
+                    </Button>
+                )}
             </div>
+
 
             {showTable && (
                 <div>
                     <CustomPaginationActionsTable data={xmlData}/>
                     {showApproveDecline && (
                         <div>
-                            <Button variant="contained" color="primary" onClick={handleApprove}>
-                                Approve
-                            </Button>
+                            {approving ? (
+                                <CircularProgress size={24} />
+                            ) : (
+                                <Button variant="contained" color="primary" onClick={handleApprove}>
+                                    Approve
+                                </Button>
+                            )}
                             <Button variant="contained" color="secondary" onClick={handleDecline}>
                                 Decline
                             </Button>
