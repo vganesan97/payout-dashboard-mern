@@ -135,7 +135,7 @@ async function processRow(row, fileId) {
                 address: {
                     line1: payorAddressLine1,
                     city: payorAddressCity,
-                    state: payorAddressState,
+                    state: 'KS',
                     zip: payorAddressZip
                 }
             },
