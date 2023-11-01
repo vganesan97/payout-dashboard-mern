@@ -2,6 +2,12 @@
 
 Interview project for Method.
 
+1. Users can use the frontend to upload an XML file containing loan payout details.
+2. The user can either approve or reject the batch of payments.
+3. If approved, the frontend will send the XML contents to a producer which will send the payments to a RabbitMQ message queue.
+4. The consumer will pick up payout requests from the queue and process them with the Method API and store them in mongoDB.
+5. The user will then be able to download the requested reports on the frontend.
+
 ## How to Run the Project
 
 ### Backend
@@ -18,8 +24,6 @@ PORT=5000
 METHOD_KEY=<method secret key>
 ```
 
-
-
 ### Message Queue
 The backend uses RabbitMQ as a message queue. You'll need to have RabbitMQ installed and running locally to process loan payout requests. Run the following command to start a RabbitMQ docker container.
 ```
@@ -34,7 +38,7 @@ dequeue the payments at our desired pace, keeping in mind the Method API rate li
 - If we're on a client that loses connection, part of the payments will be processed and another part won't be processed.  It would be good to notify the user not to navigate away from the page when the upload is in process.
 - It would be good design for the website to keep the user notified of the upload status of the most recent uploaded files.
 - When the user is presented with the decision to approve or decline the batch of XML payments, it would be nice if they can edit a row in case they need to change something in particular.
-- In the consumer, I decided to keep an in memory cache of accounts, entities, and merchants.  I decided for in memory to reduce repeated calls to the database.  However, if multiple processes are using the same consumer instance, there can be a lot of problems with keeping the caches synced.
+- In the consumer, I decided to keep an in memory cache of accounts, entities, and merchants.  I decided for in memory rather than storing this info in mongo to reduce repeated calls to the database.  However, if multiple processes are using the same consumer instance, there can be a lot of problems with keeping the caches synced.
 - Right now, I'm processing each payment in order, while creating account/entities when needed.  For a larger system, having separate queues for each method api request might be advantageous.  This way when workers are dequeued from the queue, a pool can possibly process payments in parallel if the accounts/entities for that payment has already been created.  However, this approach would require a shared state amongs all workers to keep track of the current chunk, resources consumed, and the number of requests to the method api
 - Another idea would be to offload the XML file to an on-prem/cloud storage to do later processing.  However, we would still be reading the large file in one request which would be a concern for the memory of the instance.
 - I'm assuming that the producer and consumer will each be workers/processes on their own.  For the sake of this project, they are running on the express server.
