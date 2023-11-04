@@ -28,21 +28,21 @@ app.listen(port, async () => {
     await dbo.connectToServer(function (err) {
         if (err) console.error(err);
     });
-    startConsumer()
 
     const method = new Method({
         apiKey: process.env.METHOD_KEY,
         env: Environments.dev,
     });
+    method.ping().then(r => console.log("method connection:", r))
 
     const webhook = await method.webhooks.create({
         type: 'payment.update',
         url: 'https://localhost:5000/paymentStatusWebhook',
     });
-
     console.log(`Webhook for payment status updates created: ${webhook}`);
 
-    method.ping().then(r => console.log("method connection:", r))
-    console.log(`Server is running on port: ${port}`);
+    startConsumer()
+    console.log("Consumer started.")
 
+    console.log(`Server is running on port: ${port}`);
 });
