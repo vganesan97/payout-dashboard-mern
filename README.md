@@ -10,7 +10,7 @@ Interview project for Method.
 
 ## How to Run the Project
 
-**Note:** Make sure the following ports are free: `5672` (RabbitMQ), `6379` (Redis), `5000` (Node js server)
+> Make sure the following ports are free: `5672` (RabbitMQ), `6379` (Redis), `5000` (Node js server)
 
 ### Backend
 navigate to `payout-dashboard/backend` and run `npm install` to install dependencies and `npm start` to start the express server.
