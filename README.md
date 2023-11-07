@@ -52,6 +52,7 @@ dequeue the payments at our desired pace, keeping in mind the Method API rate li
 - I'm assuming that the producer and consumer will each be workers/processes on their own.  For the sake of this project, they are running on the express server.
 - I'm currently rate limiting the consumer to process a 10 requests per second using redis.  We can use a library like `ratelimit`, `limiter`, `bottleneck`, or `redis-rate-limiter` to more intelligently rate limit based on the 600 rpm limit.  As an alternative we can implement a rate limiting algorithm ourselves using a fixed/sliding window, token buckets, or leaky buckets.  This will help against sudden bursts of traffic.
 - Using the bottleneck library, we can add a `limiter.schedule(<method call>)` every time we make a call to the method-node client.
+- For reporting, we can reduce repeated computations by storing the reports in the db once the payments from each xml has finished processing.  Right now, a user can generate reports as the payments are being processed.
 
 ## Questions/Concerns
 - I had to use curl on the command line in order to download the XML file in the notion.  It seems to be too large to open in the browser (tends to crash when clicking on it).
